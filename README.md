@@ -2,11 +2,11 @@
 ## What is HEBI ?
 #### Hebi is Japanese :japan: for snake :snake:.
 \
-HEBI is a Snake-like **game** :video_game: built with Python and [pygame](https://github.com/pygame).\
+HEBI is a Snake-like **game** :video_game: built with Python and [pygame](https://github.com/pygame).
 
-HEBI started its life as a learning project, expanding upon learning from [Teclado](https://www.teclado.com/)'s 30 Days of Python course.\
+HEBI started its life as a learning project, expanding upon learning from [Teclado](https://www.teclado.com/)'s 30 Days of Python course.
 
-HEBI features a classic Snake gameplay, with original twists.\
+HEBI features a classic Snake gameplay, with original twists.
 
 
 #### Unique features include:
