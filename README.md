@@ -34,6 +34,7 @@ HEBI features a classic Snake gameplay, with original twists.
 - Initial release.
 - Game in playable state.
 - Some key functionality awaits implementation. These include, but are not limited to:
+  - Support for any common resolution and refresh rate.
   - Music and sound effects.
   - 'Scores' and 'Options' sections, including permanent storage of scores.
   - A wider selection of themes.
