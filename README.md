@@ -11,6 +11,7 @@ HEBI features a classic Snake gameplay, with original twists.
 
 #### Unique features include:
 - Variable themes which change on every playthrough, guaranteeing a fresh experience each time.
+- Convenient ability to pause the gameplay.
 - Pleasant animations between menus.
 - More coming!
 
