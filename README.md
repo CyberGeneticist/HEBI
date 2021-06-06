@@ -58,5 +58,5 @@ _Work in progress_
 
 
 ## Contact
-[Find me here](https://linktr.ee/maciejjablonski)\
-or email me at :e-mail: macjabko@gmail.com
+:spider_web: [Find me here](https://linktr.ee/maciejjablonski)\
+:e-mail: macjabko@gmail.com
