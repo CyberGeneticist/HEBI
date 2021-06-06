@@ -1,0 +1,19 @@
+HEBI changelog:
+
+
+v. 0.2.0 - 6 June 2021
+    > The main change is the addition of a score system:
+        > The game now prompts the user for a name, which it associates with the score for that run (or runs if 'play again' selected after dying).
+        > The game now keeps a copy of all user name-score associations in a JSON file:
+            > In the future, this will likely be encrypted or obfuscated to make it harder to alter the scores.
+        > The 'scores' menu option now has an early implementation, allowing players to view all previous scores, in a descending order.
+
+
+v. 0.1.0 - 25 May 2021
+    > Initial release.
+    > Game in playable state.
+    > Some key functionality awaits implementation. These include, but are not limited to:
+        > Support for any common resolution and refresh rate.
+        > Music and sound effects.
+        > 'Scores' and 'Options' sections, including permanent storage of scores.
+        > A wider selection of themes.

@@ -1,11 +1,14 @@
 # Python 3.9.5
 
-# Project imports:
+# Namespace project imports:
 import colours  # My module - part of this program
 import events  # My module - part of this program
+import file_handling  # My module - part of this program
+
+# Aliased namespace project imports:
 import constants as c  # My module - part of this program
 
-# Total imports:
+# Namespace imports:
 import pygame
 
 # Aliased imports:
@@ -30,13 +33,14 @@ num_rows = len(range(0, final_resolution.width, c.SQUARE_SIZE))
 num_columns = len(range(0, final_resolution.height, c.SQUARE_SIZE))
 
 score_font = pygame.font.Font(None, c.SCORE_FONT_SIZE)
-quit_game_font = pygame.font.Font(None, c.QUIT_GAME_FONT_SIZE)
+large_menu_font = pygame.font.Font(None, c.LARGE_MENU_FONT_SIZE)
+small_menu_font = pygame.font.Font(None, c.SMALL_MENU_FONT_SIZE)
 
-chosen_theme = "matrix"
+default_theme = "matrix"
 games_played = 0
 
 
-def play_game():
+def play_game(player_name):
     # Adds +1 to global tally of the number of games played during this run of the program:
     increment_global_games_played()
 
@@ -69,7 +73,7 @@ def play_game():
     while True:
 
         # Event handler function:
-        movement_direction, game_paused, event_move_signal = event_handler(movement_direction, game_paused, snake_positions, score)
+        movement_direction, game_paused, event_move_signal = event_handler(movement_direction, game_paused, snake_positions, score, player_name)
 
         # Reset 'alpha' after unpausing:
         if not game_paused:
@@ -89,19 +93,19 @@ def play_game():
         if event_check_collisions:
             # Invert the 'event_check_collisions' so it does not check again until next signal is received:
             event_check_collisions = not event_check_collisions
-            food_position, score, game_paused = check_collisions(snake_positions, walls_positions, food_position, score, game_paused)
+            food_position, score, game_paused = check_collisions(snake_positions, walls_positions, food_position, score, game_paused, player_name)
 
         pygame.display.update()
         game_clock.tick(c.FPS)
 
 
-def event_handler(movement_direction, game_paused, snake_positions, score):
+def event_handler(movement_direction, game_paused, snake_positions, score, player_name):
     event_move_signal = False
 
     for event in pygame.event.get():
         # Check for quit signal:
         if event.type == pygame.QUIT:
-            draw_game_over_menu(score)
+            draw_game_over_menu(score, player_name)
 
         # Check for timed event signalling snake movement:
         elif event.type == events.SNAKE_MOVE_EVENT:
@@ -109,7 +113,7 @@ def event_handler(movement_direction, game_paused, snake_positions, score):
 
         # Check for user keyboard input:
         elif event.type == pygame.KEYDOWN:
-            movement_direction, game_paused = parse_controls(event, movement_direction, game_paused, snake_positions, score)
+            movement_direction, game_paused = parse_controls(event, movement_direction, game_paused, snake_positions, score, player_name)
 
     return movement_direction, game_paused, event_move_signal
 
@@ -178,7 +182,7 @@ def draw_score(score):
     game_window.blit(score_text, (c.SQUARE_SIZE * 2, c.SQUARE_SIZE * 2))
 
 
-def parse_controls(event, movement_direction, game_paused, snake_positions, score):
+def parse_controls(event, movement_direction, game_paused, snake_positions, score, player_name):
     # Setup:
     movement_strings = ("up", "down", "left", "right")
     function_strings = ("pause/unpause", )
@@ -187,7 +191,7 @@ def parse_controls(event, movement_direction, game_paused, snake_positions, scor
     string = c.PRESSED_KEY_MAPPING.get(event.key)
 
     if string == "quit":
-        draw_game_over_menu(score)
+        draw_game_over_menu(score, player_name)
     elif string in movement_strings and not game_paused:
         movement_direction = movement_controls(string, movement_direction, snake_positions)
     elif string in function_strings:
@@ -268,7 +272,7 @@ def set_walls_positions():
     return walls
 
 
-def check_collisions(snake_positions, walls_positions, food_position, score, game_paused):
+def check_collisions(snake_positions, walls_positions, food_position, score, game_paused, player_name):
     # Setup:
     walls_collision = tail_collision = False
 
@@ -281,7 +285,7 @@ def check_collisions(snake_positions, walls_positions, food_position, score, gam
 
     # If any of the above collision types occurred, then quit:
     if any((walls_collision, tail_collision)):
-        draw_game_over_menu(score)
+        draw_game_over_menu(score, player_name)
 
     # Check for food being eaten:
     if snake_positions[0] == food_position:
@@ -385,7 +389,7 @@ def draw_main_menu():
     menu_elements = [
         {
             "message": "PLAY",
-            "action": play_game,
+            "action": draw_player_name_prompt,
             "colour": theme["menu_element_not_selected"],
             "position": (final_resolution.width // 2, final_resolution.height // 7 * 3),
         },
@@ -424,7 +428,7 @@ def draw_main_menu():
         draw_static_menu_element(c.GAME_NAME.upper(), (final_resolution.width // 2, final_resolution.height // 7 * 1))
 
         # Draw each menu element from 'menu_elements':
-        draw_dynamic_menu_elements(menu_elements, alpha=alpha)
+        draw_dynamic_menu_elements(menu_elements, alpha)
 
         # Changes colour of 'selected' element:
         for index, menu_element in enumerate(menu_elements):
@@ -454,23 +458,97 @@ def draw_main_menu():
         game_clock.tick(c.FPS)
 
 
-def draw_scores_menu():  # TODO add 'scores' features
+def draw_player_name_prompt():
+
+    # Make two copies - one to be modified, and a second to compare to:
+    player_name = default_answer = "WHAT IS YOUR NAME ?"
+    explanation_text = "[BACKSPACE] TO REMOVE. [ENTER] TO CONFIRM."
+
+    # Main loop:
+    while True:
+        game_window.fill(theme["background"])
+
+        # Render the text and get its bounding rect:
+        element_text = large_menu_font.render(player_name, True, theme["menu_element_not_selected"])
+        element_text.set_alpha(255)
+        element_text_rect = element_text.get_rect(center=(final_resolution.width // 2, final_resolution.height // 7 * 4))
+
+        # Make a copy of the text rect to use as a base for the underscore rect:
+        highlight_rect = element_text_rect.copy()  # 'copy' call is super important here, otherwise referring to old text rect
+        highlight_rect.height = 10
+
+        # Make sure the underscore is visible even without any text:
+        if highlight_rect.width < c.LARGE_MENU_FONT_SIZE:
+            highlight_rect.width = c.LARGE_MENU_FONT_SIZE
+
+        # Align underscore so it is under the text input field:
+        highlight_rect.midtop = element_text_rect.midbottom
+
+        # Finally, draw the underscore to the game window, then blit the text:
+        pygame.draw.rect(game_window, colours.get_complementary_colour(theme["background"]), highlight_rect)
+        game_window.blit(element_text, element_text_rect)
+
+        draw_static_menu_element(explanation_text, (final_resolution.width // 2, final_resolution.height // 7 * 6), font=small_menu_font)
+
+        # Check for user input:
+        for event in pygame.event.get():
+            if event.type == pygame.KEYDOWN:
+
+                if event.key == pygame.K_BACKSPACE:
+                    # If user presses 'backspace' with default text displayed, remove all text for convenience:
+                    if player_name == default_answer:
+                        player_name = ""
+                    # Otherwise, remove only one character, as expected:
+                    else:
+                        player_name = player_name[:-1]
+
+                elif event.unicode.isalnum():
+                    player_name += event.unicode
+
+                elif event.key == pygame.K_SPACE:
+                    player_name += " "
+
+                elif event.key == pygame.K_RETURN:
+                    # Check that user provided a name which is not the original prompt, empty, or whitespace only:
+                    if player_name.strip() not in (default_answer, ""):
+                        # Strip whitespaces on ends of player name, then run a new game with that name:
+                        player_name = player_name.strip()
+                        play_game(player_name)
+                    else:
+                        # Change prompt to alert user:
+                        player_name = default_answer = "INPUT A UNIQUE NAME"
+
+        pygame.display.update()
+        game_clock.tick(c.FPS)
+
+
+def draw_scores_menu():
 
     # Gradually fades from previous frame to background colour for a pleasing effect:
     draw_fade_out_effect()
+
+    # Load the scores from file, then sort them by score descending:
+    saves = file_handling.load_saves()
+    sorted_saves = sorted(saves, key=lambda save: save["score"], reverse=True)
+
+    # Do some maths needed for displaying the scores:
+    score_index = 0
+    num_scores_per_page = 3
+    total_num_scores = len(saves)
+    range_score_indexes = range(0, total_num_scores)
 
     choice_index = 0
     menu_elements = [
         {
             "message": "PREVIOUS",
-            "action": print,  # TODO add action
+            "action": -1,
             "colour": theme["menu_element_not_selected"],
             "position": (final_resolution.width // 4 * 1, final_resolution.height // 7 * 2),
         },
 
         {
             "message": "NEXT",
-            "action": print,  # TODO add action
+            "action": +1,
             "colour": theme["menu_element_not_selected"],
             "position": (final_resolution.width // 4 * 3, final_resolution.height // 7 * 2),
         },
@@ -487,13 +565,30 @@ def draw_scores_menu():  # TODO add 'scores' features
 
     # Main loop starts here:
     while True:
+
         alpha += c.MENU_FADE_IN_SPEED if alpha + c.MENU_FADE_IN_SPEED < 255 else 255
 
         game_window.fill(theme["background"])
 
         # Draw the static element 'score', which should not be selectable or change colour:
         draw_static_menu_element("SCORES", (final_resolution.width // 2, final_resolution.height // 7 * 1))
-        draw_static_menu_element("WORK IN PROGRESS", (final_resolution.width // 2, final_resolution.height // 7 * 4))
+
+        # Draw a black, semi-transparent bar below scores to make it visually nicer:
+        scores_contrast_surface = pygame.Surface(final_resolution)
+        scores_contrast_surface.fill(theme["background"])
+        scores_contrast_alpha = alpha // 8 if alpha // 8 < 31 else 31
+        scores_contrast_surface.set_alpha(scores_contrast_alpha)
+        scores_contrast_rect = pygame.Rect((0, final_resolution.height // 7 * 3 - c.LARGE_MENU_FONT_SIZE / 2), (final_resolution.width, 440))
+        pygame.draw.rect(scores_contrast_surface, (0, 0, 0), scores_contrast_rect)
+        game_window.blit(scores_contrast_surface, (0, 0))
+
+        # Draws the actual scores by going over them in 'num_scores_per_page' sized slices at a time, until user signal changes 'score_index', changing which slice is drawn:
+        for save in range(score_index, (score_index + num_scores_per_page)):
+            # Checks that the 'save' number is in 'range_score_indexes' to ensure terminal indexes are valid, to avoid downstream errors:
+            if save in range_score_indexes:
+                draw_static_menu_element(str(save + 1), (final_resolution.width // 6 * 2, final_resolution.height // 7 * (3 + save % 3)), alpha=alpha)
+                draw_static_menu_element(sorted_saves[save]["player_name"], (final_resolution.width // 6 * 3, final_resolution.height // 7 * (3 + save % 3)), alpha=alpha)
+                draw_static_menu_element(str(sorted_saves[save]["score"]), (final_resolution.width // 6 * 4, final_resolution.height // 7 * (3 + save % 3)), alpha=alpha)
 
         # Draw each menu element from 'menu_elements':
         draw_dynamic_menu_elements(menu_elements, alpha=alpha)
@@ -510,17 +605,35 @@ def draw_scores_menu():  # TODO add 'scores' features
 
         # Check for user input:
         for event in pygame.event.get():
-            if event.type == pygame.KEYDOWN and event.key in (pygame.K_UP, pygame.K_w):
-                if choice_index > 0:
-                    choice_index -= 1
+            if event.type == pygame.KEYDOWN:
+                # Up/w menu controls:
+                if event.key in (pygame.K_UP, pygame.K_w):
+                    if choice_index > 0:
+                        choice_index -= 1
 
-            elif event.type == pygame.KEYDOWN and event.key in (pygame.K_DOWN, pygame.K_s):
-                if choice_index < len(menu_elements) - 1:
-                    choice_index += 1
+                # Down/s menu controls:
+                if event.key in (pygame.K_DOWN, pygame.K_s):
+                    if choice_index < len(menu_elements) - 1:
+                        choice_index += 1
 
-            elif event.type == pygame.KEYDOWN and event.key in (pygame.K_RETURN, pygame.K_SPACE):
-                # Carry out an 'action' - call a function associated with selected element:
-                menu_elements[choice_index]["action"]()
+                # Left/a menu controls - moves scores towards highest:
+                if event.key in (pygame.K_LEFT, pygame.K_a):
+                    if score_index - num_scores_per_page in range_score_indexes:
+                        score_index -= num_scores_per_page
+
+                # Right/d menu controls - moves scores towards lowest:
+                if event.key in (pygame.K_RIGHT, pygame.K_d):
+                    if score_index + num_scores_per_page in range_score_indexes:
+                        score_index += num_scores_per_page
+
+                # Enter/space menu controls - confirms selected menu element - carries out its action:
+                if event.key in (pygame.K_RETURN, pygame.K_SPACE):
+                    if choice_index in (0, 1):
+                        if score_index + menu_elements[choice_index]["action"] * num_scores_per_page in range_score_indexes:
+                            score_index += menu_elements[choice_index]["action"] * num_scores_per_page
+                    else:
+                        # Carry out an 'action' - call a function associated with selected element:
+                        menu_elements[choice_index]["action"]()
 
         # Finally, update the display and wait until next tick:
         pygame.display.update()
@@ -586,13 +699,18 @@ def draw_options_menu():  # TODO add 'options' features
         game_clock.tick(c.FPS)
 
 
-def draw_game_over_menu(score=0):
+def draw_game_over_menu(score=0, player_name="Anonymous"):
     """
     This function draws the 'game over' menu.
     The menu displays the score using the game score passed as the 'score' argument.
     The menu allows the user to choose to either exit to main menu, or to play again.
     """
 
+    # If score is not 0, then saves player's score in a local file:
+    if score:
+        file_handling.save_saves(score, player_name)
+
+    # Wait a 'c.SECONDS_TO_SLEEP_AFTER_GAME_OVER' seconds before quitting to let player realise what happened:
     if c.SLEEP_AFTER_GAME_OVER:
         sleep(c.SECONDS_TO_SLEEP_AFTER_GAME_OVER)
 
@@ -625,7 +743,7 @@ def draw_game_over_menu(score=0):
         game_window.fill(theme["background"])
 
         # Draw the static element 'score', which should not be selectable or change colour:
-        draw_static_menu_element(f"SCORE: {score}", (final_resolution.width // 2, final_resolution.height // 7 * 1), alpha)
+        draw_static_menu_element(f"SCORE: {score}", (final_resolution.width // 2, final_resolution.height // 7 * 1), alpha=alpha)
 
         # Draw each menu element from 'menu_elements':
         draw_dynamic_menu_elements(menu_elements, alpha=alpha)
@@ -652,33 +770,37 @@ def draw_game_over_menu(score=0):
 
             elif event.type == pygame.KEYDOWN and event.key in (pygame.K_RETURN, pygame.K_SPACE):
                 # Carry out an 'action' - call a function associated with selected element:
-                menu_elements[choice_index]["action"]()
+                if choice_index == 0:
+                    # If the chosen action is to play again, pass the user name, so the same one can be reused:
+                    menu_elements[choice_index]["action"](player_name)  # TODO consider if there a nicer way of doing this
+                else:
+                    menu_elements[choice_index]["action"]()
 
         # Finally, update the display and wait until next tick:
         pygame.display.update()
         game_clock.tick(c.FPS)
 
 
-def draw_static_menu_element(message, position, alpha=255):
+def draw_static_menu_element(message, position, alpha=255, font=large_menu_font):
     """
     When called, this function draws one 'static' element of a menu, based on 'message' and 'position' passed.
     Intended to be called only inside the main loop of a top level menu function.
     The optional keyword argument 'alpha' should be provided when creating fading in animation effect.
     """
-    element_text = quit_game_font.render(message, True, theme["menu_element_not_selected"])
+    element_text = font.render(message, True, theme["menu_element_not_selected"])
     element_text.set_alpha(alpha)
     element_text_rect = element_text.get_rect(center=position)
     game_window.blit(element_text, element_text_rect)
 
 
-def draw_dynamic_menu_elements(menu_elements, alpha=255):
+def draw_dynamic_menu_elements(menu_elements, alpha=255, font=large_menu_font):
     """
     When called, this function draws the 'selectable' elements of a menu, based on elements passed in 'menu_elements'.
     Intended to be called only inside the main loop of a top level menu function.
     The optional keyword argument 'alpha' should be provided when creating fading in animation effect.
     """
     for menu_element in menu_elements:
-        element_text = quit_game_font.render(menu_element["message"], True, menu_element["colour"])
+        element_text = font.render(menu_element["message"], True, menu_element["colour"])
         element_text.set_alpha(alpha)
         element_text_rect = element_text.get_rect(center=menu_element["position"])
         game_window.blit(element_text, element_text_rect)
@@ -710,7 +832,7 @@ def set_global_theme(theme_to_set=None):
     if theme_to_set is not None:
         theme = colours.themes[theme_to_set]
     else:
-        theme = choice(list(colours.themes.values())) if c.PICK_RANDOM_THEME else colours.themes[chosen_theme]
+        theme = choice(list(colours.themes.values())) if c.PICK_RANDOM_THEME else colours.themes[default_theme]
 
     theme["menu_element_not_selected"] = colours.get_complementary_colour(theme["text"])
     theme["menu_element_selected"] = colours.get_complementary_colour(theme["background"])

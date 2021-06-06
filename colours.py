@@ -2,7 +2,7 @@
 from collections import namedtuple
 from random import randint
 
-Colour = namedtuple("Colour", ("red", "green", "blue"))  # TODO rename element names
+Colour = namedtuple("Colour", ("red", "green", "blue"))
 
 themes = {
     "randomised": {  # This randomises at the time of import, which means it stays the same for the run of the program.

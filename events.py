@@ -1,3 +1,4 @@
+# Python 3.9.5
 import pygame
 
 # Controls the delay between snake moves:

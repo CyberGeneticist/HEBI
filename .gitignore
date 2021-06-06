@@ -1,0 +1,2 @@
+# Ignore game saves file, as these should be created from scratch for each user:
+/save.json
