@@ -30,7 +30,6 @@ HEBI features a classic Snake gameplay, with original twists.
 
 
 ## Known issues
-##### As of v. 0.1.0:
 - Not all resolutions will work at the moment :x:. Tested working :heavy_check_mark: at 1920 x 1080 and 2560 x 1080.
 - Rarely, when starting a new game, the snake will not move from its initial position. Quitting to main menu and playing a new game fixes this. Bug origin being investigated.
 - The snake's movement is not as fluid as it could be, as the snake moves only in fixed squares. Considering how to implement intermediate states being drawn. Ideas welcome.
