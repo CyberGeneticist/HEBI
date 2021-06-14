@@ -10,7 +10,16 @@ import constants as c  # My module - part of this program
 
 # Namespace imports:
 import pygame
-import win32api
+import platform
+
+# Conditional imports:
+try:
+    import win32api
+except ImportError:
+    win32api_imported = False
+    print("Could not import win32api a.k.a. pywin.")
+else:
+    win32api_imported = True
 
 # Aliased imports:
 from collections import namedtuple
@@ -21,15 +30,14 @@ from os import listdir
 from os.path import isfile, join
 
 
-
 def set_refresh_rate() -> int:
     try:
         device = win32api.EnumDisplayDevices()
         settings = win32api.EnumDisplaySettings(device.DeviceName, -1)
         refresh_rate = settings.DisplayFrequency
-    except Exception:
+    except NameError:
         refresh_rate = c.DEFAULT_REFRESH_RATE
-        print("Defaulting to default refresh rate")  # TODO remove once not needed
+        print("Defaulting to default refresh rate, as win32api a.k.a. pywin is not imported.")  # TODO remove once not needed
 
     return refresh_rate
 
@@ -44,6 +52,8 @@ def find_common_factors(number_one: int, number_two: int) -> list[int]:
     return common_factors
 
 
+print(f"PLATFORM: {platform.system()}")  # TODO consider if this is the best place for this?
+print(f"win32api_imported: {win32api_imported}")
 
 # Pygame setup:
 pygame.init()
