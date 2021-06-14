@@ -1,12 +1,30 @@
 HEBI changelog:
 
+v. 0.3.0 - 14 June 2021
+    > Added sound effects and music throughout the game, including in the menus:
+        > There are four background music tunes right now, with one playing at random during each playthrough.
+            > There are also multiple, slightly different variations of each sound effect, for sanity's sake.
+        > Music pausing while the game is paused is temporarily disabled, as it was causing unexplained crashes.
+            This functionality will be reinstated once the culprit is found.
+        > Volume of music and sound effects can be changed independently by the user in the 'options' menu:
+            > These loudness settings are permanently saved, and will be automatically used the next time the game runs.
+    > The game should now scale correctly to most resolutions, although some unusual resolutions may feature overly
+        large or small game elements, especially text.
+        > The game is still missing dynamic scaling of text to arbitrary resolutions - this is likely next on the list.
+    > The game now automatically detects monitor refresh rate (platform specific - should work on Windows), and sets
+        an appropriately high refresh rate. If this is not possible, it defaults to 60 Hz.
+    > Re-written the code governing where a snake spawns at the beginning of a game to be cleaner and better.
+    > Reduced how close to the walls the snake can spawn - it will now spawn close to the middle every time.
+
 
 v. 0.2.0 - 6 June 2021
     > The main change is the addition of a score system:
-        > The game now prompts the user for a name, which it associates with the score for that run (or runs if 'play again' selected after dying).
+        > The game now prompts the user for a name, which it associates with the score for that run
+            (or multiple consecutive runs if 'play again' selected after dying).
         > The game now keeps a copy of all user name-score associations in a JSON file:
             > In the future, this will likely be encrypted or obfuscated to make it harder to alter the scores.
-        > The 'scores' menu option now has an early implementation, allowing players to view all previous scores, in a descending order.
+        > The 'scores' menu option now has an early implementation, allowing players to view all previous scores, 
+		in a descending order.
 
 
 v. 0.1.0 - 25 May 2021

@@ -10,12 +10,39 @@ import constants as c  # My module - part of this program
 
 # Namespace imports:
 import pygame
+import win32api
 
 # Aliased imports:
 from collections import namedtuple
 from sys import exit
 from random import randrange, choice
 from time import sleep
+from os import listdir
+from os.path import isfile, join
+
+
+
+def set_refresh_rate() -> int:
+    try:
+        device = win32api.EnumDisplayDevices()
+        settings = win32api.EnumDisplaySettings(device.DeviceName, -1)
+        refresh_rate = settings.DisplayFrequency
+    except Exception:
+        refresh_rate = c.DEFAULT_REFRESH_RATE
+        print("Defaulting to default refresh rate")  # TODO remove once not needed
+
+    return refresh_rate
+
+
+def find_common_factors(number_one: int, number_two: int) -> list[int]:
+    common_factors = []
+
+    for number in range(1, min(number_one, number_two) + 1):
+        if number_one % number == number_two % number == 0:
+            common_factors.append(number)
+
+    return common_factors
+
 
 
 # Pygame setup:
@@ -29,8 +56,19 @@ game_window = pygame.display.set_mode(c.RESOLUTION)
 Resolution = namedtuple("Resolution", ("width", "height"))
 final_resolution = Resolution(width=game_window.get_width(), height=game_window.get_height())
 
-num_rows = len(range(0, final_resolution.width, c.SQUARE_SIZE))
-num_columns = len(range(0, final_resolution.height, c.SQUARE_SIZE))
+
+chosen_square_size = min(find_common_factors(*final_resolution), key=lambda number: abs(number - c.TARGET_SQUARE_SIZE))
+chosen_square_size_tuple = (chosen_square_size, chosen_square_size)
+print(f"TARGET SQUARE SIZE: {c.TARGET_SQUARE_SIZE}")
+print(f"CHOSEN VALID SQUARE SIZE: {chosen_square_size}")
+
+refresh_rate = set_refresh_rate()
+print(f"DEFAULT REFRESH RATE: {c.DEFAULT_REFRESH_RATE}")
+print(f"CHOSEN REFRESH RATE: {refresh_rate}")
+
+# Be careful with which way around rows and columns are - tricky to think about:
+num_rows = len(range(0, final_resolution.height, chosen_square_size))
+num_columns = len(range(0, final_resolution.width, chosen_square_size))
 
 score_font = pygame.font.Font(None, c.SCORE_FONT_SIZE)
 large_menu_font = pygame.font.Font(None, c.LARGE_MENU_FONT_SIZE)
@@ -38,6 +76,51 @@ small_menu_font = pygame.font.Font(None, c.SMALL_MENU_FONT_SIZE)
 
 default_theme = "matrix"
 games_played = 0
+
+# Load variations of game start sounds:
+game_start_dir = "./Music and SFX/game start"
+game_start_variations = [pygame.mixer.Sound(join(game_start_dir, file)) for file in listdir(game_start_dir)
+                         if isfile(join(game_start_dir, file))]
+
+# Load variations of bite sounds:
+bite_sound_dir = "./Music and SFX/bite"
+bite_sound_variations = [pygame.mixer.Sound(join(bite_sound_dir, file)) for file in listdir(bite_sound_dir)
+                         if isfile(join(bite_sound_dir, file))]
+
+# Load variations of game over sounds:
+game_over_dir = "./Music and SFX/game over"
+game_over_variations = [pygame.mixer.Sound(join(game_over_dir, file)) for file in listdir(game_over_dir)
+                        if isfile(join(game_over_dir, file))]
+
+# Load variations of menu confirm selection sounds:
+menu_confirm_selection_dir = "./Music and SFX/menu confirm selection"
+menu_confirm_selection_variations = [pygame.mixer.Sound(join(menu_confirm_selection_dir, file)) for file in listdir(menu_confirm_selection_dir)
+                                     if isfile(join(menu_confirm_selection_dir, file))]
+
+# Load variations of menu incorrect selection sounds:
+menu_incorrect_selection_dir = "./Music and SFX/menu incorrect selection"
+menu_incorrect_selection_variations = [pygame.mixer.Sound(join(menu_incorrect_selection_dir, file)) for file in listdir(menu_incorrect_selection_dir)
+                                       if isfile(join(menu_incorrect_selection_dir, file))]
+
+# Load variations of menu move selection sounds:
+menu_move_selection_dir = "./Music and SFX/menu move selection"
+menu_move_selection_variations = [pygame.mixer.Sound(join(menu_move_selection_dir, file)) for file in listdir(menu_move_selection_dir)
+                                  if isfile(join(menu_move_selection_dir, file))]
+
+# Load background music .wav files into pygame:
+background_music_dir = "./Music and SFX/Music"
+background_music_paths = [join(background_music_dir, file) for file in listdir(background_music_dir) if isfile(join(background_music_dir, file))]
+
+# Set initial program-wide music and sound effects loudness from a settings file, or if not available, from defaults:
+try:
+    music_volume_choice = file_handling.load_settings()["music_volume_choice"]
+except KeyError:
+    music_volume_choice = c.DEFAULT_MUSIC_VOLUME
+
+try:
+    sound_effects_volume_choice = file_handling.load_settings()["sound_effects_volume_choice"]
+except KeyError:
+    sound_effects_volume_choice = c.DEFAULT_SOUND_EFFECTS_VOLUME
 
 
 def play_game(player_name):
@@ -66,16 +149,25 @@ def play_game(player_name):
     walls_positions = set_walls_positions()
     food_position = set_food_position(snake_positions, walls_positions)
 
+    # Play game starting sound effect, and start background music:
+    choice(game_start_variations).play().set_volume(sound_effects_volume_choice)
+    pygame.mixer.music.load(choice(background_music_paths))
+    pygame.mixer.music.set_volume(music_volume_choice)
+    pygame.mixer.music.play(-1)
+
     score = 0
     alpha = 0
+    loop = 0  # TODO remove once not needed
 
     # Main game loop begins here:
     while True:
+        loop += 1  # TODO remove once not needed
+        print(f"Debug: Main game loop still running. Loop: {loop}")  # TODO remove once not needed
 
         # Event handler function:
         movement_direction, game_paused, event_move_signal = event_handler(movement_direction, game_paused, snake_positions, score, player_name)
 
-        # Reset 'alpha' after unpausing:
+        # Reset 'alpha' after unpausing, and unpause music playback:
         if not game_paused:
             alpha = 0
 
@@ -96,7 +188,7 @@ def play_game(player_name):
             food_position, score, game_paused = check_collisions(snake_positions, walls_positions, food_position, score, game_paused, player_name)
 
         pygame.display.update()
-        game_clock.tick(c.FPS)
+        game_clock.tick(refresh_rate)
 
 
 def event_handler(movement_direction, game_paused, snake_positions, score, player_name):
@@ -138,22 +230,20 @@ def draw_objects(snake_positions, food_position, walls_positions, score, game_pa
 
 def draw_snake(snake_positions):
     for position in snake_positions:
-        pygame.draw.rect(game_window, theme["snake"], (position, c.SQUARE_SIZE_TUPLE))
+        pygame.draw.rect(game_window, theme["snake"], (position, chosen_square_size_tuple))
 
 
 def draw_food(food_position):
-    pygame.draw.rect(game_window, theme["food"], (food_position, c.SQUARE_SIZE_TUPLE))
+    pygame.draw.rect(game_window, theme["food"], (food_position, chosen_square_size_tuple))
 
 
 def draw_walls(walls_positions):
     for position in walls_positions:
-        pygame.draw.rect(game_window, theme["walls"], (position, c.SQUARE_SIZE_TUPLE))
+        pygame.draw.rect(game_window, theme["walls"], (position, chosen_square_size_tuple))
 
 
 def draw_game_paused_overlay(alpha):
-    dark_surface_alpha_final = alpha
-    if dark_surface_alpha_final > c.DARK_SURFACE_ALPHA:
-        dark_surface_alpha_final = c.DARK_SURFACE_ALPHA
+    dark_surface_alpha_final = alpha if alpha < c.DARK_SURFACE_ALPHA else c.DARK_SURFACE_ALPHA
 
     dark_surface = pygame.Surface(final_resolution)
     dark_surface.set_alpha(dark_surface_alpha_final)
@@ -179,7 +269,7 @@ def draw_game_paused_text(alpha):
 def draw_score(score):
     score_text = score_font.render(str(score), True, theme["text"])
     score_text.set_alpha(c.SCORE_ALPHA)
-    game_window.blit(score_text, (c.SQUARE_SIZE * 2, c.SQUARE_SIZE * 2))
+    game_window.blit(score_text, (chosen_square_size * 2, chosen_square_size * 2))
 
 
 def parse_controls(event, movement_direction, game_paused, snake_positions, score, player_name):
@@ -228,13 +318,13 @@ def move_snake(snake_positions, movement_direction):
     head_x_position, head_y_position = snake_positions[0]
 
     if movement_direction == "up":
-        head_y_position -= c.SQUARE_SIZE
+        head_y_position -= chosen_square_size
     elif movement_direction == "down":
-        head_y_position += c.SQUARE_SIZE
+        head_y_position += chosen_square_size
     elif movement_direction == "left":
-        head_x_position -= c.SQUARE_SIZE
+        head_x_position -= chosen_square_size
     elif movement_direction == "right":
-        head_x_position += c.SQUARE_SIZE
+        head_x_position += chosen_square_size
 
     new_head_position = (head_x_position, head_y_position)
     snake_positions.insert(0, new_head_position)
@@ -245,8 +335,8 @@ def set_food_position(snake_positions, walls_positions):
     # Keep generating new random positions until one meets all conditions:
     while True:
         new_food_position = (
-            randrange(0, final_resolution.width, c.SQUARE_SIZE),
-            randrange(0, final_resolution.height, c.SQUARE_SIZE)
+            randrange(0, final_resolution.width, chosen_square_size),
+            randrange(0, final_resolution.height, chosen_square_size)
         )
 
         # Ensure that the new food position is not instantly colliding:
@@ -258,14 +348,14 @@ def set_walls_positions():
     walls_positions = []
 
     # Top and bottom:
-    for left_x_pos in range(0, final_resolution.width, c.SQUARE_SIZE):
+    for left_x_pos in range(0, final_resolution.width, chosen_square_size):
         walls_positions.append((left_x_pos, 0))
-        walls_positions.append((left_x_pos, final_resolution.height - c.SQUARE_SIZE))
+        walls_positions.append((left_x_pos, final_resolution.height - chosen_square_size))
 
     # Left and right:
-    for top_y_pos in range(0, final_resolution.height, c.SQUARE_SIZE):
+    for top_y_pos in range(0, final_resolution.height, chosen_square_size):
         walls_positions.append((0, top_y_pos))
-        walls_positions.append((final_resolution.width - c.SQUARE_SIZE, top_y_pos))
+        walls_positions.append((final_resolution.width - chosen_square_size, top_y_pos))
 
     # For sanity's sake, remove duplicates:
     walls = list(set(walls_positions))
@@ -293,6 +383,8 @@ def check_collisions(snake_positions, walls_positions, food_position, score, gam
         snake_positions.append(snake_positions[-1])
         food_position = set_food_position(snake_positions, walls_positions)
         score += 1
+        # Play a bite sound effect:
+        choice(bite_sound_variations).play().set_volume(sound_effects_volume_choice)
 
     return food_position, score, game_paused
 
@@ -335,36 +427,62 @@ def get_initial_snake_positions(snake_initial_length, movement_direction):
 
     # Setup:
     initial_snake_positions = []
-    border_divisor = 5
 
-    # Calculates the rounded-down number of rows and columns which are in 'border_percentage' outside edges of the screen:
-    horizontal_border = num_rows // border_divisor
-    vertical_border = num_columns // border_divisor
+    # These numbers control the percentage of the play area that is a no-spawn zone. NOTE: Per-side so from 0.0 to 0.5, do not go >= 0.5
+    horizontal_border_percentage_per_side = 0.4  # TODO these two might need changing so they work in a more logical 0.0 to 1.0 interval
+    vertical_border_percentage_per_side = 0.4
 
-    # Gets numbers of rows and columns which are in the 'border' area:
-    possible_rows = range(0 + vertical_border, num_rows - vertical_border)
-    possible_columns = range(0 + horizontal_border, num_columns - horizontal_border)
+    print(f"num_rows: {num_rows}")
+    print(f"num_columns: {num_columns}")
 
+    # Establish whether 'minimum_gap' of wall size + snake length is needed:
+    if round(num_rows * horizontal_border_percentage_per_side) < 1 + snake_initial_length:
+        minimum_gap = (1 + snake_initial_length)
+    else:
+        minimum_gap = 0
+
+    print(f"minimum_gap: {minimum_gap}")
+
+    # The actual calculations - takes into account 'do not spawn here' borders, the visible walls, and the snake's length:
+    valid_rows = range(
+        round(0 + (num_rows * horizontal_border_percentage_per_side)) + minimum_gap,
+        round(num_rows - (num_rows * horizontal_border_percentage_per_side)) - minimum_gap
+    )
+
+    valid_columns = range(
+        round(0 + (num_columns * vertical_border_percentage_per_side)) + minimum_gap,
+        round(num_columns - (num_columns * vertical_border_percentage_per_side)) - minimum_gap
+    )
+
+    print(f"valid_rows: {valid_rows}")
+    print(f"valid_columns: {valid_columns}")
+
+    # Randomly pick where the snake begins, then get the next elements stepwise:
     for piece in range(snake_initial_length):
+        next_position = None
+
         # If this will be the first - head - piece of the snake, choose a random place for it:
         if not initial_snake_positions:
-            next_position = (choice(possible_rows) * c.SQUARE_SIZE, choice(possible_columns) * c.SQUARE_SIZE)
+            next_position = (choice(valid_columns) * chosen_square_size, choice(valid_rows) * chosen_square_size)
 
         # If this is a subsequent piece, make sure it attaches to the first one, in a direction opposite to movement:
         else:
             previous_position_x, previous_position_y = initial_snake_positions[piece - 1]
 
             if movement_direction == "up":
-                next_position = (previous_position_x, previous_position_y + c.SQUARE_SIZE)
+                next_position = (previous_position_x, previous_position_y + chosen_square_size)
             elif movement_direction == "down":
-                next_position = (previous_position_x, previous_position_y - c.SQUARE_SIZE)
+                next_position = (previous_position_x, previous_position_y - chosen_square_size)
             elif movement_direction == "left":
-                next_position = (previous_position_x + c.SQUARE_SIZE, previous_position_y)
+                next_position = (previous_position_x + chosen_square_size, previous_position_y)
             elif movement_direction == "right":
-                next_position = (previous_position_x - c.SQUARE_SIZE, previous_position_y)
+                next_position = (previous_position_x - chosen_square_size, previous_position_y)
 
-        initial_snake_positions.append(next_position)
+        # If 'next_position' is not None, append it to the snake's positions:
+        if next_position:
+            initial_snake_positions.append(next_position)
 
+    print(f"initial_snake_positions: {initial_snake_positions}")
     return initial_snake_positions
 
 
@@ -441,21 +559,39 @@ def draw_main_menu():
 
         # Check for user input:
         for event in pygame.event.get():
-            if event.type == pygame.KEYDOWN and event.key in (pygame.K_UP, pygame.K_w):
-                if choice_index > 0:
-                    choice_index -= 1
+            if event.type == pygame.KEYDOWN:
+                if event.key in (pygame.K_UP, pygame.K_w):
+                    if choice_index > 0:
+                        choice_index -= 1
+                        # Play a sound effect associated with moving the selection:
+                        choice(menu_move_selection_variations).play().set_volume(sound_effects_volume_choice)
+                    else:
+                        # Play a sound effect indicating an incorrect selection:
+                        choice(menu_incorrect_selection_variations).play().set_volume(sound_effects_volume_choice)
 
-            elif event.type == pygame.KEYDOWN and event.key in (pygame.K_DOWN, pygame.K_s):
-                if choice_index < len(menu_elements) - 1:
-                    choice_index += 1
 
-            elif event.type == pygame.KEYDOWN and event.key in (pygame.K_RETURN, pygame.K_SPACE):
-                # Carry out an 'action' - call a function associated with selected element:
-                menu_elements[choice_index]["action"]()
+                elif event.key in (pygame.K_DOWN, pygame.K_s):
+                    if choice_index < len(menu_elements) - 1:
+                        choice_index += 1
+                        # Play a sound effect associated with moving the selection:
+                        choice(menu_move_selection_variations).play().set_volume(sound_effects_volume_choice)
+                    else:
+                        # Play a sound effect indicating an incorrect selection:
+                        choice(menu_incorrect_selection_variations).play().set_volume(sound_effects_volume_choice)
+
+
+                elif event.key in (pygame.K_RETURN, pygame.K_SPACE):
+                    # Play a sound effect confirming selection:
+                    choice(menu_confirm_selection_variations).play().set_volume(sound_effects_volume_choice)
+                    # Carry out an 'action' - call a function associated with selected element:
+                    menu_elements[choice_index]["action"](
+                        *menu_elements[choice_index].get("args", []),
+                        **menu_elements[choice_index].get("kwargs", {})
+                    )
 
         # Finally, update the display and wait until next tick:
         pygame.display.update()
-        game_clock.tick(c.FPS)
+        game_clock.tick(refresh_rate)
 
 
 def draw_player_name_prompt():
@@ -495,6 +631,7 @@ def draw_player_name_prompt():
             if event.type == pygame.KEYDOWN:
 
                 if event.key == pygame.K_BACKSPACE:
+                    choice(menu_move_selection_variations).play().set_volume(sound_effects_volume_choice)
                     # If user presses 'backspace' with default text displayed, remove all text for convenience:
                     if player_name == default_answer:
                         player_name = ""
@@ -504,22 +641,26 @@ def draw_player_name_prompt():
 
                 elif event.unicode.isalnum():
                     player_name += event.unicode
+                    choice(menu_move_selection_variations).play().set_volume(sound_effects_volume_choice)
 
                 elif event.key == pygame.K_SPACE:
                     player_name += " "
+                    choice(menu_move_selection_variations).play().set_volume(sound_effects_volume_choice)
 
                 elif event.key == pygame.K_RETURN:
                     # Check that user provided a name which is not the original prompt, empty, or whitespace only:
                     if player_name.strip() not in (default_answer, ""):
+                        choice(menu_confirm_selection_variations).play().set_volume(sound_effects_volume_choice)
                         # Strip whitespaces on ends of player name, then run a new game with that name:
                         player_name = player_name.strip()
                         play_game(player_name)
                     else:
                         # Change prompt to alert user:
                         player_name = default_answer = "INPUT A UNIQUE NAME"
+                        choice(menu_incorrect_selection_variations).play().set_volume(sound_effects_volume_choice)
 
         pygame.display.update()
-        game_clock.tick(c.FPS)
+        game_clock.tick(refresh_rate)
 
 
 def draw_scores_menu():
@@ -610,43 +751,87 @@ def draw_scores_menu():
                 if event.key in (pygame.K_UP, pygame.K_w):
                     if choice_index > 0:
                         choice_index -= 1
+                        # Play a sound effect associated with moving the selection:
+                        choice(menu_move_selection_variations).play().set_volume(sound_effects_volume_choice)
+                    else:
+                        # Play a sound effect indicating an incorrect selection:
+                        choice(menu_incorrect_selection_variations).play().set_volume(sound_effects_volume_choice)
 
                 # Down/s menu controls:
                 if event.key in (pygame.K_DOWN, pygame.K_s):
                     if choice_index < len(menu_elements) - 1:
                         choice_index += 1
+                        # Play a sound effect associated with moving the selection:
+                        choice(menu_move_selection_variations).play().set_volume(sound_effects_volume_choice)
+                    else:
+                        # Play a sound effect indicating an incorrect selection:
+                        choice(menu_incorrect_selection_variations).play().set_volume(sound_effects_volume_choice)
 
                 # Left/a menu controls - moves scores towards highest:
                 if event.key in (pygame.K_LEFT, pygame.K_a):
                     if score_index - num_scores_per_page in range_score_indexes:
                         score_index -= num_scores_per_page
+                        # Play a sound effect associated with moving the selection:
+                        choice(menu_move_selection_variations).play().set_volume(sound_effects_volume_choice)
+                    else:
+                        # Play a sound effect indicating an incorrect selection:
+                        choice(menu_incorrect_selection_variations).play().set_volume(sound_effects_volume_choice)
 
                 # Right/d menu controls - moves scores towards lowest:
                 if event.key in (pygame.K_RIGHT, pygame.K_d):
                     if score_index + num_scores_per_page in range_score_indexes:
                         score_index += num_scores_per_page
+                        # Play a sound effect associated with moving the selection:
+                        choice(menu_move_selection_variations).play().set_volume(sound_effects_volume_choice)
+                    else:
+                        # Play a sound effect indicating an incorrect selection:
+                        choice(menu_incorrect_selection_variations).play().set_volume(sound_effects_volume_choice)
 
                 # Enter/space menu controls - confirms selected menu element - carries out its action:
                 if event.key in (pygame.K_RETURN, pygame.K_SPACE):
                     if choice_index in (0, 1):
+                        # TODO add description of the two lines below
                         if score_index + menu_elements[choice_index]["action"] * num_scores_per_page in range_score_indexes:
                             score_index += menu_elements[choice_index]["action"] * num_scores_per_page
+                            # Play a sound effect confirming selection:
+                            choice(menu_confirm_selection_variations).play().set_volume(sound_effects_volume_choice)
+                        else:
+                            # Play a sound effect indicating an incorrect selection:
+                            choice(menu_incorrect_selection_variations).play().set_volume(sound_effects_volume_choice)
                     else:
+                        # Play a sound effect confirming selection:
+                        choice(menu_confirm_selection_variations).play().set_volume(sound_effects_volume_choice)
                         # Carry out an 'action' - call a function associated with selected element:
-                        menu_elements[choice_index]["action"]()
+                        menu_elements[choice_index]["action"](
+                            *menu_elements[choice_index].get("args", []),
+                            **menu_elements[choice_index].get("kwargs", {})
+                        )
 
         # Finally, update the display and wait until next tick:
         pygame.display.update()
-        game_clock.tick(c.FPS)
+        game_clock.tick(refresh_rate)
 
 
-def draw_options_menu():  # TODO add 'options' features
+def draw_options_menu():
+    global music_volume_choice, sound_effects_volume_choice
 
     # Gradually fades from previous frame to background colour for a pleasing effect:
     draw_fade_out_effect()
 
     choice_index = 0
     menu_elements = [
+        {
+            "message": f"MUSIC VOLUME:",
+            "colour": theme["menu_element_not_selected"],
+            "position": (final_resolution.width // 2, final_resolution.height // 7 * 3),
+        },
+
+        {
+            "message": f"SOUND EFFECTS VOLUME:",
+            "colour": theme["menu_element_not_selected"],
+            "position": (final_resolution.width // 2, final_resolution.height // 7 * 4),
+        },
+
         {
             "message": "MAIN MENU",
             "action": draw_main_menu,
@@ -665,7 +850,8 @@ def draw_options_menu():  # TODO add 'options' features
 
         # Draw the static element 'score', which should not be selectable or change colour:
         draw_static_menu_element("OPTIONS", (final_resolution.width // 2, final_resolution.height // 7 * 1))
-        draw_static_menu_element("WORK IN PROGRESS", (final_resolution.width // 2, final_resolution.height // 7 * 4))
+        draw_static_menu_element(f"{int(music_volume_choice * 100)} %", (final_resolution.width // 56 * 41, final_resolution.height // 7 * 3))
+        draw_static_menu_element(f"{int(sound_effects_volume_choice * 100)} %", (final_resolution.width // 56 * 46, final_resolution.height // 7 * 4))
 
         # Draw each dynamic menu element from 'menu_elements':
         draw_dynamic_menu_elements(menu_elements, alpha=alpha)
@@ -682,21 +868,82 @@ def draw_options_menu():  # TODO add 'options' features
 
         # Check for user input:
         for event in pygame.event.get():
-            if event.type == pygame.KEYDOWN and event.key in (pygame.K_UP, pygame.K_w):
-                if choice_index > 0:
-                    choice_index -= 1
+            if event.type == pygame.KEYDOWN:
+                if event.key in (pygame.K_UP, pygame.K_w):
+                    if choice_index > 0:
+                        choice_index -= 1
+                        # Play a sound effect confirming selection:
+                        choice(menu_move_selection_variations).play().set_volume(sound_effects_volume_choice)
+                    else:
+                        # Play a sound effect indicating an incorrect selection:
+                        choice(menu_incorrect_selection_variations).play().set_volume(sound_effects_volume_choice)
 
-            elif event.type == pygame.KEYDOWN and event.key in (pygame.K_DOWN, pygame.K_s):
-                if choice_index < len(menu_elements) - 1:
-                    choice_index += 1
+                elif event.key in (pygame.K_DOWN, pygame.K_s):
+                    if choice_index < len(menu_elements) - 1:
+                        choice_index += 1
+                        # Play a sound effect confirming selection:
+                        choice(menu_move_selection_variations).play().set_volume(sound_effects_volume_choice)
+                    else:
+                        # Play a sound effect indicating an incorrect selection:
+                        choice(menu_incorrect_selection_variations).play().set_volume(sound_effects_volume_choice)
 
-            elif event.type == pygame.KEYDOWN and event.key in (pygame.K_RETURN, pygame.K_SPACE):
-                # Carry out an 'action' - call a function associated with selected element:
-                menu_elements[choice_index]["action"]()
+                elif event.key in (pygame.K_LEFT, pygame.K_a):
+                    if choice_index == 0:
+                        if music_volume_choice > 0:
+                            # Decrease music volume:
+                            music_volume_choice = round(music_volume_choice - 0.1, 2)
+                            choice(menu_move_selection_variations).play().set_volume(sound_effects_volume_choice)
+                        else:
+                            # Play 'incorrect selection' sound effect:
+                            choice(menu_incorrect_selection_variations).play().set_volume(sound_effects_volume_choice)
+
+                    elif choice_index == 1:
+                        if sound_effects_volume_choice > 0:
+                            # Decrease sound fx volume:
+                            sound_effects_volume_choice = round(sound_effects_volume_choice - 0.1, 2)
+                            choice(menu_move_selection_variations).play().set_volume(sound_effects_volume_choice)
+                        else:
+                            # Play 'incorrect selection' sound effect:
+                            choice(menu_incorrect_selection_variations).play().set_volume(sound_effects_volume_choice)
+
+                elif event.key in (pygame.K_RIGHT, pygame.K_d):
+                    if choice_index == 0:
+                        if music_volume_choice < 1:
+                            # Increase music volume:
+                            music_volume_choice = round(music_volume_choice + 0.1, 2)
+                            choice(menu_move_selection_variations).play().set_volume(sound_effects_volume_choice)
+                        else:
+                            # Play 'incorrect selection' sound effect:
+                            choice(menu_incorrect_selection_variations).play().set_volume(sound_effects_volume_choice)
+
+                    elif choice_index == 1:
+                        if sound_effects_volume_choice < 1:
+                            # Increase sound fx volume:
+                            sound_effects_volume_choice = round(sound_effects_volume_choice + 0.1, 2)
+                            choice(menu_move_selection_variations).play().set_volume(sound_effects_volume_choice)
+                        else:
+                            # Play 'incorrect selection' sound effect:
+                            choice(menu_incorrect_selection_variations).play().set_volume(sound_effects_volume_choice)
+
+                elif event.key in (pygame.K_RETURN, pygame.K_SPACE):
+                    # First, save the currently selected settings:  # TODO consider how does one cancel / apply settings?
+                    file_handling.save_settings(music_volume_choice=music_volume_choice, sound_effects_volume_choice=sound_effects_volume_choice)
+
+                    if "action" in menu_elements[choice_index]:
+                        # Play a sound effect confirming selection. NOTE: Needs to be done before executing action:
+                        choice(menu_confirm_selection_variations).play().set_volume(sound_effects_volume_choice)
+                        # Carry out an 'action' - call a function associated with selected element:
+                        menu_elements[choice_index]["action"](
+                            *menu_elements[choice_index].get("args", []),
+                            **menu_elements[choice_index].get("kwargs", {})
+                        )
+                    else:
+                        # Play 'incorrect selection' sound effect:
+                        choice(menu_incorrect_selection_variations).play().set_volume(sound_effects_volume_choice)
 
         # Finally, update the display and wait until next tick:
         pygame.display.update()
-        game_clock.tick(c.FPS)
+        game_clock.tick(refresh_rate)
 
 
 def draw_game_over_menu(score=0, player_name="Anonymous"):
@@ -706,13 +953,17 @@ def draw_game_over_menu(score=0, player_name="Anonymous"):
     The menu allows the user to choose to either exit to main menu, or to play again.
     """
 
+    # Play game over sound effect, and stop background music playback:
+    choice(game_over_variations).play().set_volume(sound_effects_volume_choice)
+    pygame.mixer.music.fadeout(500)
+
     # If score is not 0, then saves player's score in a local file:
     if score:
         file_handling.save_saves(score, player_name)
 
-    # Wait a 'c.SECONDS_TO_SLEEP_AFTER_GAME_OVER' seconds before quitting to let player realise what happened:
+    # Wait a 'c.GAME_OVER_DELAY' seconds before quitting to let player realise what happened:
     if c.SLEEP_AFTER_GAME_OVER:
-        sleep(c.SECONDS_TO_SLEEP_AFTER_GAME_OVER)
+        sleep(c.GAME_OVER_DELAY)
 
     # Gradually fades from previous frame to background colour for a pleasing effect:
     draw_fade_out_effect()
@@ -722,6 +973,7 @@ def draw_game_over_menu(score=0, player_name="Anonymous"):
         {
             "message": "PLAY AGAIN",
             "action": play_game,
+            "args": [player_name, ],
             "colour": theme["menu_element_not_selected"],
             "position": (final_resolution.width // 2, final_resolution.height // 7 * 3),
         },
@@ -760,25 +1012,37 @@ def draw_game_over_menu(score=0, player_name="Anonymous"):
 
         # Check for user input:
         for event in pygame.event.get():
-            if event.type == pygame.KEYDOWN and event.key in (pygame.K_UP, pygame.K_w):
-                if choice_index > 0:
-                    choice_index -= 1
+            if event.type == pygame.KEYDOWN:
+                if event.key in (pygame.K_UP, pygame.K_w):
+                    if choice_index > 0:
+                        choice_index -= 1
+                        # Play a sound associated with moving a selection:
+                        choice(menu_move_selection_variations).play().set_volume(sound_effects_volume_choice)
+                    else:
+                        # Play a sound effect indicating an incorrect selection:
+                        choice(menu_incorrect_selection_variations).play().set_volume(sound_effects_volume_choice)
 
-            elif event.type == pygame.KEYDOWN and event.key in (pygame.K_DOWN, pygame.K_s):
-                if choice_index < len(menu_elements) - 1:
-                    choice_index += 1
+                elif event.key in (pygame.K_DOWN, pygame.K_s):
+                    if choice_index < len(menu_elements) - 1:
+                        choice_index += 1
+                        # Play a sound associated with moving a selection:
+                        choice(menu_move_selection_variations).play().set_volume(sound_effects_volume_choice)
+                    else:
+                        # Play a sound effect indicating an incorrect selection:
+                        choice(menu_incorrect_selection_variations).play().set_volume(sound_effects_volume_choice)
 
-            elif event.type == pygame.KEYDOWN and event.key in (pygame.K_RETURN, pygame.K_SPACE):
-                # Carry out an 'action' - call a function associated with selected element:
-                if choice_index == 0:
-                    # If the chosen action is to play again, pass the user name, so the same one can be reused:
-                    menu_elements[choice_index]["action"](player_name)  # TODO consider if there a nicer way of doing this
-                else:
-                    menu_elements[choice_index]["action"]()
+                elif event.key in (pygame.K_RETURN, pygame.K_SPACE):
+                    # Play a sound effect confirming selection:
+                    choice(menu_confirm_selection_variations).play().set_volume(sound_effects_volume_choice)
+                    # Carry out an 'action' - call a function associated with selected element:
+                    menu_elements[choice_index]["action"](
+                        *menu_elements[choice_index].get("args", []),
+                        **menu_elements[choice_index].get("kwargs", {})
+                    )
 
         # Finally, update the display and wait until next tick:
         pygame.display.update()
-        game_clock.tick(c.FPS)
+        game_clock.tick(refresh_rate)
 
 
 def draw_static_menu_element(message, position, alpha=255, font=large_menu_font):
@@ -817,7 +1081,7 @@ def draw_fade_out_effect():
         game_window.blit(fade_surface, (0, 0))
 
         pygame.display.update()
-        game_clock.tick(c.FPS)
+        game_clock.tick(refresh_rate)
 
         alpha += c.MENU_FADE_OUT_SPEED
 
@@ -856,6 +1120,16 @@ def quit_game():
 
     pygame.quit()
     exit()
+
+
+def find_common_factors(number_one, number_two):
+    common_factors = []
+
+    for number in range(1, min(number_one, number_two) + 1):
+        if number_one % number == number_two % number == 0:
+            common_factors.append(number)
+
+    return common_factors
 
 
 

@@ -1,2 +1,3 @@
-# Ignore game saves file, as these should be created from scratch for each user:
+# Ignore game saves file and settings file, as these should be created from scratch for each user:
 /save.json
+/settings.json
