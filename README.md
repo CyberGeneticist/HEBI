@@ -19,13 +19,19 @@ HEBI features a classic Snake gameplay, with original twists.
 ## How to install and use
 1. If you do not have it installed already, download Python version 3.9 or newer from [Python Official Website](https://www.python.org/downloads/).
 2. Copy/download this repository.
-3. Run the 'main.py' file to start the game.
+3. You may need to install dependencies. To do so, open a terminal, e.g. the command prompt on Windows, then enter each line:
+```python
+pip install pygame
+pip install pywin  # Install this one only if you are on Windows
+```
+5. Run the 'main.py' file to start the game.
 
 
 ## Controls
 - WSAD or arrow keys - movement direction
 - SPACE - pause/unpause the game
 - ENTER or SPACE in menus - confirm selection
+- In 'options' and 'scores' menus, LEFT / RIGHT and A / D lets you toggle options.
 
 
 
