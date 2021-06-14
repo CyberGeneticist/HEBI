@@ -41,6 +41,10 @@ pip install pywin  # Install this one only if you are on Windows
 - The snake's movement is not as fluid as it could be, as the snake moves only in fixed squares. Considering how to implement intermediate states being drawn. Ideas welcome.
 
 ## Version history
+#### v. 0.3.1 - 14 June 2021
+- Hotfix for an issue where the program would not run correctly on non-Windows platforms due to a
+    platform-specific import. The program now utilises a conditional import to offer the best of both worlds.
+
 #### v. 0.3.0 - 14 June 2021
 - Added sound effects and music throughout the game, including in the menus:
     - There are four background music tunes right now, with one playing at random during each playthrough.
