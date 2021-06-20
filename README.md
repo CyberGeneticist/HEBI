@@ -83,6 +83,13 @@ _Work in progress_
 Feel free to use with attribution (link to this repo).
 
 
+## Credits
+Music and most sound effects obtained from the fantastic site [ZapSplat](https://www.zapsplat.com/)  
+Some sound effects from [freesound](https://freesound.org/)  
+A few sound effects from [FreeSFX](https://freesfx.co.uk/Default.aspx)  
+
+
+
 ## Contact
 :spider_web: [Find me here](https://linktr.ee/maciejjablonski)\
 :e-mail: macjabko@gmail.com
